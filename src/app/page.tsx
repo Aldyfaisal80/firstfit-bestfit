@@ -1,101 +1,285 @@
-import Image from "next/image";
+"use client"
+import { useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-export default function Home() {
+export default function SimulatorAlokasi() {
+  // State untuk lubang memori dengan kemampuan edit
+  const [lubang, setLubang] = useState([
+    { id: 1, ukuran: 100, proses: '' },
+    { id: 2, ukuran: 500, proses: '' },
+    { id: 3, ukuran: 200, proses: '' },
+    { id: 4, ukuran: 300, proses: '' },
+    { id: 5, ukuran: 600, proses: '' },
+    { id: 6, ukuran: 50, proses: '' },
+    { id: 7, ukuran: 250, proses: '' }
+  ])
+
+  const [ukuranProses, setUkuranProses] = useState('')
+  const [lubangTujuan, setLubangTujuan] = useState('')
+  const [algoritma, setAlgoritma] = useState('manual')
+  const [alokasi, setAlokasi] = useState([])
+
+  // Fungsi update ukuran lubang
+  const updateUkuranLubang = (id, value) => {
+    const ukuranBaru = value === '' ? 0 : parseInt(value)
+    setLubang(lubang.map(l => 
+      l.id === id ? { ...l, ukuran: isNaN(ukuranBaru) ? l.ukuran : ukuranBaru } : l
+    ))
+  }
+
+  // Fungsi update proses di lubang
+  const updateProsesLubang = (id, value) => {
+    setLubang(lubang.map(l => 
+      l.id === id ? { ...l, proses: value } : l
+    ))
+  }
+
+  const alokasikanMemori = () => {
+    const ukuran = parseInt(ukuranProses)
+    const idLubang = parseInt(lubangTujuan)
+
+    // Validasi input
+    if (isNaN(ukuran) || ukuran <= 0) {
+      alert('Masukkan ukuran proses yang valid')
+      return
+    }
+
+    if (isNaN(idLubang)) {
+      alert('Pilih lubang tujuan')
+      return
+    }
+
+    // Cari lubang yang dipilih
+    const lubangDipilih = lubang.find(l => l.id === idLubang)
+
+    if (!lubangDipilih) {
+      alert('Lubang tidak ditemukan')
+      return
+    }
+
+    // Cek algoritma alokasi
+    let hasilAlokasi = null
+
+    switch (algoritma) {
+      case 'manual':
+        // Alokasi manual
+        if (lubangDipilih.ukuran >= ukuran && !lubangDipilih.proses) {
+          hasilAlokasi = {
+            idLubang: idLubang,
+            ukuranProses: ukuran,
+            sisaUkuran: lubangDipilih.ukuran - ukuran
+          }
+
+          // Update lubang
+          setLubang(lubang.map(l => 
+            l.id === idLubang 
+              ? { 
+                  ...l, 
+                  proses: ukuran.toString(), 
+                  ukuran: l.ukuran - ukuran 
+                } 
+              : l
+          ))
+        } else {
+          alert('Lubang tidak cukup atau sudah terisi')
+          return
+        }
+        break;
+
+      case 'firstFit':
+        // Algoritma First Fit
+        for (let l of lubang) {
+          if (l.ukuran >= ukuran && !l.proses) {
+            hasilAlokasi = {
+              idLubang: l.id,
+              ukuranProses: ukuran,
+              sisaUkuran: l.ukuran - ukuran
+            }
+
+            // Update lubang
+            setLubang(lubang.map(hole => 
+              hole.id === l.id 
+                ? { 
+                    ...hole, 
+                    proses: ukuran.toString(), 
+                    ukuran: hole.ukuran - ukuran 
+                  } 
+                : hole
+            ))
+            break
+          }
+        }
+        break;
+
+      case 'bestFit':
+        // Algoritma Best Fit
+        let lubangTerbaik = null
+        let sisaMinimum = Infinity
+
+        for (let l of lubang) {
+          if (l.ukuran >= ukuran && !l.proses) {
+            const sisaUkuran = l.ukuran - ukuran
+            if (sisaUkuran < sisaMinimum) {
+              sisaMinimum = sisaUkuran
+              lubangTerbaik = l
+            }
+          }
+        }
+
+        if (lubangTerbaik) {
+          hasilAlokasi = {
+            idLubang: lubangTerbaik.id,
+            ukuranProses: ukuran,
+            sisaUkuran: lubangTerbaik.ukuran - ukuran
+          }
+
+          // Update lubang
+          setLubang(lubang.map(hole => 
+            hole.id === lubangTerbaik.id 
+              ? { 
+                  ...hole, 
+                  proses: ukuran.toString(), 
+                  ukuran: hole.ukuran - ukuran 
+                } 
+              : hole
+          ))
+        }
+        break;
+    }
+
+    // Tambahkan ke riwayat alokasi jika berhasil
+    if (hasilAlokasi) {
+      setAlokasi([...alokasi, hasilAlokasi])
+    } else {
+      alert('Tidak ada lubang yang sesuai untuk proses')
+    }
+
+    // Reset input
+    setUkuranProses('')
+    setLubangTujuan('')
+  }
+
+  const resetSimulasi = () => {
+    setLubang([
+      { id: 1, ukuran: 100, proses: '' },
+      { id: 2, ukuran: 500, proses: '' },
+      { id: 3, ukuran: 200, proses: '' },
+      { id: 4, ukuran: 300, proses: '' },
+      { id: 5, ukuran: 600, proses: '' },
+      { id: 6, ukuran: 50, proses: '' },
+      { id: 7, ukuran: 250, proses: '' }
+    ])
+    setAlokasi([])
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Simulator Alokasi Memori</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Alokasi Memori</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Pilih Algoritma */}
+              <Select 
+                value={algoritma} 
+                onValueChange={setAlgoritma}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih Algoritma" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manual">Manual</SelectItem>
+                  <SelectItem value="firstFit">First Fit</SelectItem>
+                  <SelectItem value="bestFit">Best Fit</SelectItem>
+                </SelectContent>
+              </Select>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+              {/* Input Ukuran Proses */}
+              <Input 
+                type="number" 
+                placeholder="Masukkan Ukuran Proses (KB)" 
+                value={ukuranProses}
+                onChange={(e) => setUkuranProses(e.target.value)}
+              />
+
+              {/* Pilih Lubang Tujuan */}
+              <Select 
+                value={lubangTujuan} 
+                onValueChange={setLubangTujuan}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih Lubang Tujuan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {lubang.map(hole => (
+                    <SelectItem 
+                      key={hole.id} 
+                      value={hole.id.toString()}
+                      disabled={hole.proses !== ''}
+                    >
+                      Lubang {hole.id} - {hole.ukuran} KB
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <div className="flex space-x-2">
+                <Button onClick={alokasikanMemori}>Alokasikan Memori</Button>
+                <Button variant="secondary" onClick={resetSimulasi}>Reset</Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Daftar Lubang Memori */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Lubang Memori Saat Ini</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {lubang.map(hole => (
+              <div key={hole.id} className="grid grid-cols-3 gap-2 items-center border-b py-2">
+                <Input 
+                  type="number" 
+                  value={hole.ukuran} 
+                  onChange={(e) => updateUkuranLubang(hole.id, e.target.value)}
+                  placeholder="Ukuran (KB)"
+                />
+                <Input 
+                  type="number" 
+                  value={hole.proses} 
+                  onChange={(e) => updateProsesLubang(hole.id, e.target.value)}
+                  placeholder="Proses (KB)"
+                  disabled
+                />
+                <span>Lubang {hole.id}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Riwayat Alokasi */}
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle>Riwayat Alokasi</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {alokasi.map((alloc, index) => (
+            <div key={index} className="flex justify-between border-b py-2">
+              <span>Proses dialokasikan ke Lubang {alloc.idLubang}</span>
+              <span>Ukuran: {alloc.ukuranProses} KB, Sisa: {alloc.sisaUkuran} KB</span>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }
