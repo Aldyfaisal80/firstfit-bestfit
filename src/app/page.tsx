@@ -9,7 +9,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 // Custom Toast Component
 const CustomToast = ({ message }: { message: string }) => (
-	<div className='flex items-center p-4 rounded-md shadow-md'>
+	<div className="flex items-center p-4 rounded-md shadow-md">
 		<span>{message}</span>
 	</div>
 );
@@ -29,40 +29,68 @@ export default function SimulatorAlokasi() {
 	const [lubangTujuan, setLubangTujuan] = useState('');
 	const [algoritma, setAlgoritma] = useState('manual');
 	const [alokasi, setAlokasi] = useState<{ idLubang: number; ukuranProses: number; sisaUkuran: number }[]>([]);
+	const [waitingList, setWaitingList] = useState<{ id: number; ukuran: number }[]>([]);
 
 	const updateUkuranLubang = (id: number, value: string) => {
-		const ukuranBaru = value === '' ? 0 : parseInt(value);
-		setLubang(lubang.map(l => (l.id === id ? { ...l, ukuran: isNaN(ukuranBaru) ? l.ukuran : ukuranBaru } : l)));
+		const ukuranBaru = parseInt(value);
+		if (isNaN(ukuranBaru) || ukuranBaru < 0) return;
+		setLubang(lubang.map(l => (l.id === id ? { ...l, ukuran: ukuranBaru } : l)));
 	};
 
-	const updateProsesLubang = (id: number, value: string) => {
-		const prosesBaru = value === '' ? '' : value;
-		setLubang(lubang.map(l => (l.id === id ? { ...l, proses: prosesBaru } : l)));
+	// Fungsi cekWaitingList untuk mencoba mengalokasikan kembali proses dari waiting list
+	const cekWaitingList = () => {
+		setWaitingList(waitingList.filter(proses => {
+			for (const l of lubang) {
+				if (l.ukuran >= proses.ukuran && !l.proses) {
+					setLubang(
+						lubang.map(hole =>
+							hole.id === l.id
+								? {
+										...hole,
+										proses: proses.ukuran.toString(),
+										ukuran: hole.ukuran - proses.ukuran,
+								  }
+								: hole,
+						),
+					);
+					setAlokasi([
+						...alokasi,
+						{
+							idLubang: l.id,
+							ukuranProses: proses.ukuran,
+							sisaUkuran: l.ukuran - proses.ukuran,
+						},
+					]);
+					return false; // Proses berhasil dialokasikan, hapus dari waiting list
+				}
+			}
+			return true; // Tetap di waiting list jika tidak ada lubang yang cocok
+		}));
 	};
 
 	const alokasikanMemori = () => {
 		const ukuran = parseInt(ukuranProses);
 
 		if (isNaN(ukuran) || ukuran <= 0) {
-			toast(<CustomToast message='Masukkan ukuran proses yang valid' />);
+			toast(<CustomToast message="Masukkan ukuran proses yang valid" />);
 			return;
 		}
 
 		let hasilAlokasi = null;
 
 		switch (algoritma) {
-			case 'manual':
+			case 'manual': {
 				const idLubang = parseInt(lubangTujuan);
 
 				if (isNaN(idLubang)) {
-					toast(<CustomToast message='Pilih lubang tujuan' />);
+					toast(<CustomToast message="Pilih lubang tujuan" />);
 					return;
 				}
 
 				const lubangDipilih = lubang.find(l => l.id === idLubang);
 
 				if (!lubangDipilih) {
-					toast(<CustomToast message='Lubang tidak ditemukan' />);
+					toast(<CustomToast message="Lubang tidak ditemukan" />);
 					return;
 				}
 
@@ -85,13 +113,13 @@ export default function SimulatorAlokasi() {
 						),
 					);
 				} else {
-					toast(<CustomToast message='Lubang tidak cukup atau sudah terisi' />);
+					toast(<CustomToast message="Lubang tidak cukup atau sudah terisi" />);
 					return;
 				}
 				break;
+			}
 
-			case 'firstFit':
-				// First Fit Algorithm
+			case 'firstFit': {
 				for (const l of lubang) {
 					if (l.ukuran >= ukuran && !l.proses) {
 						hasilAlokasi = {
@@ -115,9 +143,9 @@ export default function SimulatorAlokasi() {
 					}
 				}
 				break;
+			}
 
-			case 'bestFit':
-				// Best Fit Algorithm
+			case 'bestFit': {
 				let lubangTerbaik = null;
 				let sisaMinimum = Infinity;
 
@@ -151,12 +179,14 @@ export default function SimulatorAlokasi() {
 					);
 				}
 				break;
+			}
 		}
 
 		if (hasilAlokasi) {
 			setAlokasi([...alokasi, hasilAlokasi]);
 		} else {
-			toast(<CustomToast message='Tidak ada lubang yang sesuai untuk proses' />);
+			setWaitingList([...waitingList, { id: Date.now(), ukuran }]);
+			toast(<CustomToast message="Proses tidak muat, dimasukkan ke waiting list" />);
 		}
 
 		setUkuranProses('');
@@ -174,48 +204,42 @@ export default function SimulatorAlokasi() {
 			{ id: 7, ukuran: 250, proses: '' },
 		]);
 		setAlokasi([]);
+		cekWaitingList(); // Cek apakah proses waiting list dapat dialokasikan kembali
 	};
 
 	return (
-		<div className='container mx-auto p-4'>
-			<h1 className='text-2xl font-bold mb-4'>Simulator Alokasi Memori</h1>
+		<div className="container mx-auto p-4">
+			<h1 className="text-2xl font-bold mb-4">Simulator Alokasi Memori</h1>
 
-			<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 				<Card>
 					<CardHeader>
 						<CardTitle>Alokasi Memori</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<div className='space-y-4'>
-							{/* Pilih Algoritma */}
-							<Select
-								value={algoritma}
-								onValueChange={setAlgoritma}>
+						<div className="space-y-4">
+							<Select value={algoritma} onValueChange={setAlgoritma}>
 								<SelectTrigger>
-									<SelectValue placeholder='Pilih Algoritma' />
+									<SelectValue placeholder="Pilih Algoritma" />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value='manual'>Manual</SelectItem>
-									<SelectItem value='firstFit'>First Fit</SelectItem>
-									<SelectItem value='bestFit'>Best Fit</SelectItem>
+									<SelectItem value="manual">Manual</SelectItem>
+									<SelectItem value="firstFit">First Fit</SelectItem>
+									<SelectItem value="bestFit">Best Fit</SelectItem>
 								</SelectContent>
 							</Select>
 
-							{/* Input Ukuran Proses */}
 							<Input
-								type='number'
-								placeholder='Masukkan Ukuran Proses (KB)'
+								type="number"
+								placeholder="Masukkan Ukuran Proses (KB)"
 								value={ukuranProses}
 								onChange={e => setUkuranProses(e.target.value)}
 							/>
 
-							{/* Pilih Lubang Tujuan hanya untuk Manual */}
 							{algoritma === 'manual' && (
-								<Select
-									value={lubangTujuan}
-									onValueChange={setLubangTujuan}>
+								<Select value={lubangTujuan} onValueChange={setLubangTujuan}>
 									<SelectTrigger>
-										<SelectValue placeholder='Pilih Lubang Tujuan' />
+										<SelectValue placeholder="Pilih Lubang Tujuan" />
 									</SelectTrigger>
 									<SelectContent>
 										{lubang.map(hole => (
@@ -230,11 +254,9 @@ export default function SimulatorAlokasi() {
 								</Select>
 							)}
 
-							<div className='flex space-x-2'>
+							<div className="flex space-x-2">
 								<Button onClick={alokasikanMemori}>Alokasikan Memori</Button>
-								<Button
-									variant='secondary'
-									onClick={resetSimulasi}>
+								<Button variant="secondary" onClick={resetSimulasi}>
 									Reset
 								</Button>
 							</div>
@@ -242,7 +264,6 @@ export default function SimulatorAlokasi() {
 					</CardContent>
 				</Card>
 
-				{/* Daftar Lubang Memori */}
 				<Card>
 					<CardHeader>
 						<CardTitle>Lubang Memori Saat Ini</CardTitle>
@@ -251,20 +272,14 @@ export default function SimulatorAlokasi() {
 						{lubang.map(hole => (
 							<div
 								key={hole.id}
-								className='grid grid-cols-3 gap-2 items-center border-b py-2'>
+								className="grid grid-cols-3 gap-2 items-center border-b py-2">
 								<Input
-									type='number'
+									type="number"
 									value={hole.ukuran}
 									onChange={e => updateUkuranLubang(hole.id, e.target.value)}
-									placeholder='Ukuran (KB)'
+									placeholder="Ukuran (KB)"
 								/>
-								<Input
-									type='number'
-									value={hole.proses}
-									onChange={e => updateProsesLubang(hole.id, e.target.value)}
-									placeholder='Proses (KB)'
-									disabled
-								/>
+								<Input type="number" value={hole.proses} disabled placeholder="Proses (KB)" />
 								<span>Lubang {hole.id}</span>
 							</div>
 						))}
@@ -272,16 +287,31 @@ export default function SimulatorAlokasi() {
 				</Card>
 			</div>
 
-			{/* Riwayat Alokasi */}
-			<Card className='mt-4'>
+			<Card className="mt-4">
+				<CardHeader>
+					<CardTitle>Waiting List</CardTitle>
+				</CardHeader>
+				<CardContent>
+					{waitingList.length > 0 ? (
+						waitingList.map((proses, index) => (
+							<div key={proses.id} className="flex justify-between border-b py-2">
+								<span>Proses {index + 1}</span>
+								<span>Ukuran: {proses.ukuran} KB</span>
+							</div>
+						))
+					) : (
+						<p className="text-gray-500">Tidak ada proses dalam waiting list.</p>
+					)}
+				</CardContent>
+			</Card>
+
+			<Card className="mt-4">
 				<CardHeader>
 					<CardTitle>Riwayat Alokasi</CardTitle>
 				</CardHeader>
 				<CardContent>
 					{alokasi.map((alloc, index) => (
-						<div
-							key={index}
-							className='flex justify-between border-b py-2'>
+						<div key={index} className="flex justify-between border-b py-2">
 							<span>Proses dialokasikan ke Lubang {alloc.idLubang}</span>
 							<span>
 								Ukuran: {alloc.ukuranProses} KB, Sisa: {alloc.sisaUkuran} KB
@@ -291,15 +321,14 @@ export default function SimulatorAlokasi() {
 				</CardContent>
 			</Card>
 
-			{/* Toast Container */}
 			<ToastContainer
-				position='bottom-right'
+				position="bottom-right"
 				autoClose={5000}
 				newestOnTop
 				closeOnClick
 				draggable
 				pauseOnHover
-				theme='light'
+				theme="light"
 			/>
 		</div>
 	);
